@@ -1,0 +1,47 @@
+name: Run tests on Windows
+
+on: 
+  push:
+    branches: [ custom/master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build the Python client
+        working-directory: .
+        run: python3 setup.py sdist
+
+      - name: Configure AWS credentials
+        if: always()
+        uses: aws-actions/configure-aws-credentials@13d241b293754004c80624b5567555c4a39ffbe3
+        env:
+          AWS_REGION: us-east-1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Push new package to S3
+        working-directory: .
+        run: |
+          PACKAGE_NAME=censius-prefect
+          ls dist/
+          aws s3 mv dist/$PACKAGE_NAME s3://censius.ai.pypi-packages/packages/$PACKAGE_NAME
+        
+      - name: Restart the PyPi package server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
+          proxy_host: ${{ secrets.PROXY_HOST }}
+          proxy_username: ec2-user
+          proxy_key: ${{ secrets.KEY }}
+          script: |
+            sudo docker container ls
+            CONTAINER_ID=$(sudo docker ps | grep pypi-server | awk '{print $1}')
+            sudo docker container restart $CONTAINER_ID

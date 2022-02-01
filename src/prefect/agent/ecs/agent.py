@@ -12,6 +12,8 @@ from prefect.utilities.agent import get_flow_image, get_flow_run_command
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
 
+from .utils import set_random_timeout
+
 
 DEFAULT_TASK_DEFINITION_PATH = os.path.join(
     os.path.dirname(__file__), "task_definition.yaml"
@@ -317,22 +319,30 @@ class ECSAgent(Agent):
         # Get kwargs to pass to run_task
         kwargs = self.get_run_task_kwargs(flow_run, run_config)
 
-        resp = self.ecs_client.run_task(taskDefinition=taskdef_arn, **kwargs)
+        def callback():
+            resp = self.ecs_client.run_task(taskDefinition=taskdef_arn, **kwargs)
 
-        # Always deregister the task definition if a new one was registered
-        if new_taskdef_arn:
-            self.logger.debug("Deregistering task definition %s", taskdef_arn)
-            self.ecs_client.deregister_task_definition(taskDefinition=taskdef_arn)
+            # Always deregister the task definition if a new one was registered
+            if new_taskdef_arn:
+                self.logger.debug("Deregistering task definition %s", taskdef_arn)
+                self.ecs_client.deregister_task_definition(taskDefinition=taskdef_arn)
 
-        if resp.get("tasks"):
-            task_arn = resp["tasks"][0]["taskArn"]
-            self.logger.debug("Started task %r for flow run %r", task_arn, flow_run.id)
-            return f"Task {task_arn}"
+            if resp.get("tasks"):
+                task_arn = resp["tasks"][0]["taskArn"]
+                self.logger.debug("Started task %r for flow run %r", task_arn, flow_run.id)
+                return f"Task {task_arn}"
 
-        raise ValueError(
-            "Failed to start task for flow run {0}. Failures: {1}".format(
-                flow_run.id, resp.get("failures")
+            raise ValueError(
+                "Failed to start task for flow run {0}. Failures: {1}".format(
+                    flow_run.id, resp.get("failures")
+                )
             )
+
+        # Wait for a random amount of time between 0 and 59 seconds
+        set_random_timeout(
+            0,
+            5,
+            callback
         )
 
     def generate_task_definition(
