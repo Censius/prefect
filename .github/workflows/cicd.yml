@@ -29,7 +29,7 @@ jobs:
         run: |
           PACKAGE_NAME=$(ls dist/)
           ls dist/
-          aws s3 mv dist/$PACKAGE_NAME s3://censius.ai.pypi-packages/packages/censius-prefect.tar.gz
+          aws s3 mv dist/$PACKAGE_NAME s3://censius.ai.pypi-packages/packages/$PACKAGE_NAME
         
       - name: Restart the PyPi package server
         uses: appleboy/ssh-action@master
