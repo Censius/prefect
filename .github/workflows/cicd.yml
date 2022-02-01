@@ -34,11 +34,11 @@ jobs:
       - name: Restart the PyPi package server
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.HOST }}
+          host: 34.225.99.28
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
           port: ${{ secrets.PORT }}
-          proxy_host: ${{ secrets.PROXY_HOST }}
+          proxy_host: 172.31.23.9
           proxy_username: ec2-user
           proxy_key: ${{ secrets.KEY }}
           script: |
