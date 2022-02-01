@@ -38,7 +38,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
           port: ${{ secrets.PORT }}
-          proxy_host: 172.31.23.9
+          proxy_host: censius-logs-dev
           proxy_username: ec2-user
           proxy_key: ${{ secrets.KEY }}
           script: |
