@@ -285,41 +285,42 @@ class ECSAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        run_config = self._get_run_config(flow_run, ECSRun)
-        assert isinstance(run_config, ECSRun)  # mypy
-
-        if run_config.task_definition_arn is None:
-            # Register a new task definition
-            self.logger.debug(
-                "Registering new task definition for flow %s", flow_run.flow.id
-            )
-            taskdef = self.generate_task_definition(flow_run, run_config)
-            resp = self.ecs_client.register_task_definition(**taskdef)
-            taskdef_arn = resp["taskDefinition"]["taskDefinitionArn"]
-            new_taskdef_arn = True
-            self.logger.debug(
-                "Registered task definition %s for flow %s",
-                taskdef_arn,
-                flow_run.flow.id,
-            )
-        else:
-            from prefect.serialization.storage import StorageSchema
-            from prefect.storage import Docker
-
-            if isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                raise ValueError(
-                    "Cannot provide `task_definition_arn` when using `Docker` storage"
-                )
-            taskdef_arn = run_config.task_definition_arn
-            new_taskdef_arn = False
-            self.logger.debug(
-                "Using task definition %s for flow %s", taskdef_arn, flow_run.flow.id
-            )
-
-        # Get kwargs to pass to run_task
-        kwargs = self.get_run_task_kwargs(flow_run, run_config)
 
         def callback():
+            run_config = self._get_run_config(flow_run, ECSRun)
+            assert isinstance(run_config, ECSRun)  # mypy
+
+            if run_config.task_definition_arn is None:
+                # Register a new task definition
+                self.logger.debug(
+                    "Registering new task definition for flow %s", flow_run.flow.id
+                )
+                taskdef = self.generate_task_definition(flow_run, run_config)
+                resp = self.ecs_client.register_task_definition(**taskdef)
+                taskdef_arn = resp["taskDefinition"]["taskDefinitionArn"]
+                new_taskdef_arn = True
+                self.logger.debug(
+                    "Registered task definition %s for flow %s",
+                    taskdef_arn,
+                    flow_run.flow.id,
+                )
+            else:
+                from prefect.serialization.storage import StorageSchema
+                from prefect.storage import Docker
+
+                if isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+                    raise ValueError(
+                        "Cannot provide `task_definition_arn` when using `Docker` storage"
+                    )
+                taskdef_arn = run_config.task_definition_arn
+                new_taskdef_arn = False
+                self.logger.debug(
+                    "Using task definition %s for flow %s", taskdef_arn, flow_run.flow.id
+                )
+
+            # Get kwargs to pass to run_task
+            kwargs = self.get_run_task_kwargs(flow_run, run_config)
+            
             resp = self.ecs_client.run_task(taskDefinition=taskdef_arn, **kwargs)
 
             # Always deregister the task definition if a new one was registered
